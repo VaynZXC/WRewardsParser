@@ -146,7 +146,8 @@ class ChatParserThread(QThread):
         self.streamer = streamer
         
     def run(self):            
-        with self.get_chromedriver(user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36') as driver:
+        #user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        with self.get_chromedriver() as driver:
             print('Окно браузера запущено.')
             driver.get(f'https://kick.com/{self.streamer}/chatroom')
             #driver.get(f'https://kick.com/')
