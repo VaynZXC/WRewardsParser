@@ -12,13 +12,29 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import WebDriverException
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import StaleElementReferenceException, TimeoutException
 import win10toast
+from collections import deque
+import requests
+import json
 
+
+bot_token = '6807729782:AAEpu9XVa1EJDL1OSqrPvD6pE69XUulQWM4'
+chat_id = '-4129523904'
+message = 'Привет, это тестовое сообщение от моего бота!'
+
+
+def send_telegram_message(bot_token, chat_id, message):
+    send_text = f'https://api.telegram.org/bot{bot_token}/sendMessage?chat_id={chat_id}&parse_mode=Markdown&text={message}'
+    response = requests.get(send_text)
+    return response.json()
 
 class ParserThread(QThread):
     live_signal = pyqtSignal(str)
     is_running = True
-    live_status_changed = pyqtSignal(str, bool)
+    live_status_changed = pyqtSignal(list)
     
     def __init__(self, parent=None):
         super(ParserThread, self).__init__(parent)
@@ -30,17 +46,14 @@ class ParserThread(QThread):
             while self.is_running:
                 try:
                     self.live_obj_parse(driver)
-                    time.sleep(60)
+                    time.sleep(30)
                 except WebDriverException as e:
                     print('Окно браузера было закрыто или принудительно остановленно.')
                     break
                 except Exception as ex:
                     print('=====ERROR=====')
                     print(ex)
-    
-    def stop(self):
-        self.is_running = False
-                    
+           
     def get_chromedriver(self, use_proxy=False, user_agent=None):
     
         chrome_options = webdriver.ChromeOptions()
@@ -52,7 +65,7 @@ class ParserThread(QThread):
             chrome_options.add_argument(f'--user-agent={user_agent}')
         
         chrome_options.add_argument("--disable-blink-features=AutomationControlled")
-        chrome_options.add_argument("--headless")
+        #chrome_options.add_argument("--headless")
         chrome_options.add_argument("--disable-gpu")
                 
         s = Service(
@@ -79,36 +92,90 @@ class ParserThread(QThread):
     
     
     def live_obj_parse(self, driver):
-        live_hyus_obj = driver.find_elements(By.XPATH, '//*[@id="FeaturedCreators"]/div/div[2]/div[3]/div')
-        if live_hyus_obj:
-            print('Найдена трансляция на канале Hyus')
-            streamer_name = 'hyus'
-            self.live_status_changed.emit(streamer_name, True)
-        else:
-            self.live_status_changed.emit(streamer_name, False)
-            
-            
+        live_streamers = []
+
+        def count_direct_children(driver, parent_element):
+            script = "return arguments[0].childElementCount;"
+            return driver.execute_script(script, parent_element)
+        
+        if driver.find_element(By.CLASS_NAME, 'sc-8a9b0271-11.hebpcf'):
+            live_wrewards_obj = driver.find_element(By.CLASS_NAME, 'sc-8a9b0271-11.hebpcf')
+            child_elements = count_direct_children(driver, live_wrewards_obj)
+            if child_elements > 3:
+                #send_telegram_message(bot_token, chat_id, 'Wrewards стримит! Бородка дряхлая.')
+                print('Найдена трансляция на канале Wrewards')
+                live_streamers.append('wrewards')
+
+        if driver.find_element(By.CLASS_NAME, 'sc-8a9b0271-11.loEfmC'):
+            live_pkle_obj = driver.find_element(By.CLASS_NAME, 'sc-8a9b0271-11.loEfmC')
+            child_elements = count_direct_children(driver, live_pkle_obj)
+            if child_elements > 3:
+                #send_telegram_message(bot_token, chat_id, 'PKLE стримит!')
+                print('Найдена трансляция на канале PKLE')
+                live_streamers.append('pkle')   
+
+        if driver.find_element(By.CLASS_NAME, 'sc-8a9b0271-11.hDkoy'):
+            live_hyus_obj = driver.find_element(By.CLASS_NAME, 'sc-8a9b0271-11.hDkoy')
+            child_elements = count_direct_children(driver, live_hyus_obj)
+            if child_elements > 3:
+                #send_telegram_message(bot_token, chat_id, 'Hyus стримит!')
+                print('Найдена трансляция на канале Hyus')
+                live_streamers.append('hyus')
+
+        if driver.find_element(By.CLASS_NAME, 'sc-8a9b0271-11.hujkXc'):
+            live_watchgamestv_obj = driver.find_element(By.CLASS_NAME, 'sc-8a9b0271-11.hujkXc')
+            child_elements = count_direct_children(driver, live_watchgamestv_obj)
+            if child_elements > 3:
+                #send_telegram_message(bot_token, chat_id, 'Watchgamestv стримит!')
+                print('Найдена трансляция на канале Watchgamestv')
+                live_streamers.append('watchgamestv')
+
+        if live_streamers:
+            self.live_status_changed.emit(live_streamers)
+            print('стримеры переданы дальше')
+            print(live_streamers)
+            #time.sleep(7200)
+                 
+    def stop(self):
+        self.is_running = False
+        
 class ChatParserThread(QThread):
     def __init__(self, streamer=None, parent=None):
         super(ChatParserThread, self).__init__(parent)
         self.is_running = True
         self.streamer = streamer
         
-    def run(self):
+    def run(self):            
         with self.get_chromedriver(user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36') as driver:
+            print('Окно браузера запущено.')
             driver.get(f'https://kick.com/{self.streamer}/chatroom')
-
-            old_messages = set()
+            #driver.get(f'https://kick.com/')
+            print('Сайт прогружен и готов к работе.')
+            
+            old_messages = deque(maxlen=200)
             
             while self.is_running:
                 try:
                     self.message_parse(driver, old_messages)
+                    
+                    # print('Записываю куки.')
+                    # cookies = driver.get_cookies()
+                    # with open("cookies.json", "w") as file:
+                    #     json.dump(cookies, file)
+                    #     print('Куки записаны.')
+                    
+                except StaleElementReferenceException:
+                    print('=====StaleElementReferenceException=====')
+                except TimeoutException:
+                    print('=====TimeoutException=====')
                 except WebDriverException as e:
+                    print(e)
                     print('Окно браузера было закрыто или принудительно остановленно.')
-                    break
+                    driver.close()
                 except Exception as ex:
                     print('=====ERROR=====')
                     print(ex)
+                    
     
     def get_chromedriver(self, user_agent=None):
     
@@ -119,7 +186,7 @@ class ChatParserThread(QThread):
         
         chrome_options.add_argument("--disable-blink-features=AutomationControlled")
         #chrome_options.add_argument("--headless")
-        chrome_options.add_argument("--disable-gpu")
+        #chrome_options.add_argument("--disable-gpu")
                 
         s = Service(
             executable_path='chromdriver/chromedriver.exe'
@@ -151,6 +218,7 @@ class ChatParserThread(QThread):
             if message_id in old_messages:
                 continue
             else:
+                old_messages.append(message_id)
                 split_message = message.text.split(':')
                 if len(split_message) > 1:
                     message_author = split_message[0]
@@ -161,14 +229,14 @@ class ChatParserThread(QThread):
                 
                 if message_msg:
                     print(message.text)
-                old_messages.add(message_id)
-                if len(old_messages) > 500:
-                    old_messages.pop()
             
                 if 'WRewardsBot' in message_author:
                     if 'A Raffle Started' in message_msg:
-                        toast = win10toast.ToastNotifier()
-                        toast.show_toast(title='Раздача поинтов началась', msg='Зайдите на стрим и напишите "WG" в чат.', duration=10)          
+                        send_telegram_message(bot_token, chat_id, 'Раздача поинтов началась.\nЗайдите на стрим и напишите "WG" в чат.')
+                        #toast = win10toast.ToastNotifier()
+                        #toast.show_toast(title='Раздача поинтов началась', msg='Зайдите на стрим и напишите "WG" в чат.', duration=10)
+                        time.sleep(50)     
+                        break
     
     def stop(self):
         self.is_running = False
@@ -209,8 +277,6 @@ class ParserApp(QWidget, settings.Ui_MainWindow):
         self.selected_button_id = self.button_group.checkedId()
         self.streamer = None
         
-
-        
         self.login_button.clicked.connect(self.login_button_act)
         self.login_button.setStyleSheet("""
             QPushButton {
@@ -227,14 +293,25 @@ class ParserApp(QWidget, settings.Ui_MainWindow):
         self.start_live_parser_parserapp()
         self.parser_thread.live_status_changed.connect(self.update_live_icon)
         
-        
-        
     def start_live_parser_parserapp(self):
         self.parser_thread = ParserThread()
         self.parser_thread.live_signal.connect(self.update_live_icon)
         self.parser_thread.start()
 
-        
+    def update_live_icon(self, live_streamers):
+        if 'hyus' in live_streamers:
+            self.live_hyus.raise_()
+            self.description.setText('Найдена трансляция! Выберите стримера чат которого будем парсить.')
+        if 'wrewards' in live_streamers:
+            self.live_wrewards.raise_()
+            self.description.setText('Найдена трансляция! Выберите стримера чат которого будем парсить.')
+        if 'watchgamestv' in live_streamers:
+            self.live_watchgamestv.raise_()
+            self.description.setText('Найдена трансляция! Выберите стримера чат которого будем парсить.')
+        if 'pkle' in live_streamers:
+            self.live_pkle.raise_()
+            self.description.setText('Найдена трансляция! Выберите стримера чат которого будем парсить.')
+                
     def login_button_act(self):
         self.sound_mixer.music.load('sound/main.mp3')
         self.sound_mixer.music.play()
@@ -250,8 +327,10 @@ class ParserApp(QWidget, settings.Ui_MainWindow):
             self.streamer = 'watchgamestv'
         elif self.selected_button_id == 4:
             self.streamer = 'hyuslive'
-            
+
         self.parser_thread.stop()
+        
+        self.description.setText('Если парсер вдруг прекратит работу, просто перезапуститее его.')
                         
         print(self.selected_button_id)
         print(self.streamer)
@@ -260,17 +339,9 @@ class ParserApp(QWidget, settings.Ui_MainWindow):
         self.chat_parser_thread.finished.connect(self.chat_parser_thread.deleteLater)
         self.chat_parser_thread.start()
         
+        
         self.start_parser_update_page()
 
-    def update_live_icon(self, streamer_name, is_live):
-        if is_live:
-            self.description.setText('Найдена трансляция! Выберите стримера чат которого будем парсить.')
-            if streamer_name == 'hyus':
-                self.live_hyus.raise_()
-        else:
-            if streamer_name == 'hyus':
-                self.live_hyus.lower()
-                
     def start_parser_update_page(self):
         self.login_button.lower()
         self.live_hyus.lower()
@@ -308,13 +379,13 @@ class ParserApp(QWidget, settings.Ui_MainWindow):
         self.in_progress.lower()
         
         self.chat_parser_thread.stop()
+        self.chat_parser_thread.wait()
         
-        self.start_live_parser_parserapp()
         self.parser_thread.live_status_changed.connect(self.update_live_icon)
         
     def close_button_act(self):
         self.close()      
-        
+
     def wrap_button_act(self):
         self.showMinimized()
 

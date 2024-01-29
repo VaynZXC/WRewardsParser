@@ -223,29 +223,25 @@ class Ui_MainWindow(object):
         self.live_hyus = QtWidgets.QLabel(self.widget)
         self.live_hyus.setGeometry(QtCore.QRect(680, 80, 81, 31))
         self.live_hyus.setStyleSheet("background-image: url(image/live.png);\n"
-"background-repeat: no-repeat;\n"
-"background-size: cover;")
+"background-repeat: no-repeat;\n")
         self.live_hyus.setText("")
         self.live_hyus.setObjectName("live_hyus")
         self.live_watchgamestv = QtWidgets.QLabel(self.widget)
         self.live_watchgamestv.setGeometry(QtCore.QRect(525, 80, 81, 31))
         self.live_watchgamestv.setStyleSheet("background-image: url(image/live.png);\n"
-"background-repeat: no-repeat;\n"
-"background-size: cover;")
+"background-repeat: no-repeat;\n")
         self.live_watchgamestv.setText("")
         self.live_watchgamestv.setObjectName("live_watchgamestv")
         self.live_pkle = QtWidgets.QLabel(self.widget)
         self.live_pkle.setGeometry(QtCore.QRect(370, 80, 81, 31))
         self.live_pkle.setStyleSheet("background-image: url(image/live.png);\n"
-"background-repeat: no-repeat;\n"
-"background-size: cover;")
+"background-repeat: no-repeat;\n")
         self.live_pkle.setText("")
         self.live_pkle.setObjectName("live_pkle")
         self.live_wrewards = QtWidgets.QLabel(self.widget)
         self.live_wrewards.setGeometry(QtCore.QRect(215, 80, 81, 31))
         self.live_wrewards.setStyleSheet("background-image: url(image/live.png);\n"
-"background-repeat: no-repeat;\n"
-"background-size: cover;")
+"background-repeat: no-repeat;\n")
         self.live_wrewards.setText("")
         self.live_wrewards.setObjectName("live_wrewards")
         self.background.raise_()
